@@ -1,5 +1,9 @@
-package orj.johnsoft.reactive;
+package org.johnsoft.reactive;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.http.Protocol;
@@ -10,6 +14,7 @@ import software.amazon.awssdk.services.kinesis.model.KinesisException;
 import software.amazon.awssdk.services.kinesis.model.PutRecordRequest;
 
 import java.net.URI;
+import java.nio.ByteBuffer;
 import java.util.Properties;
 
 public class KinesisService {
@@ -20,7 +25,10 @@ public class KinesisService {
     private final KinesisAsyncClient kinesisClient;
     private String streamName;
 
+    private static final Logger log = LoggerFactory.getLogger(KinesisService.class);
+
     public KinesisService() {
+        System.setProperty("aws.cborEnabled", "false");
         //System.setProperty("aws.cborEnabled", "false");
         Properties config = ApplicationProperties.loadProperties(CONFIG_FILE);
 
@@ -54,22 +62,22 @@ public class KinesisService {
     }
 
 
-    public Mono<String> send(String key, String message) {
+    public Mono<ByteBuffer> send(String key, ByteBuffer message) {
         return Mono.fromFuture(
                 kinesisClient.putRecord(createPutRecordRequest(key, message))
-                            .thenApply(r -> r.sequenceNumber())
+                            .thenApply(r -> ByteBuffer.wrap(r.sequenceNumber().getBytes()))
                             .exceptionally(e -> {
-                                e.printStackTrace();
+                                log.error(e.getMessage(), e);
                                 return null;
                             })
         );
     }
 
-    private PutRecordRequest createPutRecordRequest(String key, String message) {
+    private PutRecordRequest createPutRecordRequest(String key, ByteBuffer message) {
         return PutRecordRequest.builder()
                 .streamName(streamName)
                 .partitionKey(key)
-                .data(SdkBytes.fromUtf8String(message))
+                .data(SdkBytes.fromByteBuffer(message))
                 .build();
     }
 

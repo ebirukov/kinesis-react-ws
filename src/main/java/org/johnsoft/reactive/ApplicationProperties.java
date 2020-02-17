@@ -1,4 +1,4 @@
-package orj.johnsoft.reactive;
+package org.johnsoft.reactive;
 
 import java.io.InputStream;
 import java.util.Properties;
