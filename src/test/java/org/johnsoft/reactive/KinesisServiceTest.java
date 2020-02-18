@@ -21,8 +21,8 @@ public class KinesisServiceTest {
         KinesisService kinesisService = mock(KinesisService.class);
         ByteBuffer message = ByteBuffer.wrap("hello".getBytes());
         ByteBuffer result = ByteBuffer.wrap("response".getBytes());
-        when(kinesisService.send(anyString(), any(ByteBuffer.class))).thenReturn(Mono.just(result));
-        Mono<ByteBuffer> mono = kinesisService.send(UUID.randomUUID().toString(), message);
+        when(kinesisService.send(any(ByteBuffer.class))).thenReturn(Mono.just(result));
+        Mono<ByteBuffer> mono = kinesisService.send(message);
         assertNotNull(mono);
         assertNotNull(mono.block());
     }
