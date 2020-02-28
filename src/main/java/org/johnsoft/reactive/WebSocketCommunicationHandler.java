@@ -4,8 +4,11 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.core.publisher.SignalType;
 import reactor.netty.http.websocket.WebsocketInbound;
 import reactor.netty.http.websocket.WebsocketOutbound;
+import reactor.util.function.Tuple2;
 
 import java.nio.ByteBuffer;
 import java.time.Duration;
@@ -20,23 +23,27 @@ public class WebSocketCommunicationHandler {
     Publisher<Void> process(WebsocketInbound in, WebsocketOutbound out) {
         return in.receive()
                 .retain()
+
                 .window(Duration.ofMillis(10))
                 .map(w -> w.buffer(500)
                                 .map(this::convert)
                                 .map(kinesisService::send)
-                                .onBackpressureBuffer(500)
-                                //.log("", Level.INFO, false, SignalType.ON_ERROR)
                                 .flatMap(r -> r.map(Unpooled::wrappedBuffer))
-                                .publish(out::send)
-                ).doOnCancel(() -> System.out.println("cancel"))
-                .doOnError(e -> e.printStackTrace())
+                                .as(out::send)
+                )
                 .flatMap(Flux::from);
     }
 
     private List<ByteBuffer> convert(List<ByteBuf> byteBuf) {
         return byteBuf
                 .stream()
-                .map(ByteBuf::nioBuffer)
+                .map(this::toNioBuffer)
                 .collect(toList());
+    }
+
+    private ByteBuffer toNioBuffer(ByteBuf bb) {
+        ByteBuffer byteBuffer = bb.nioBuffer();
+        bb.release();
+        return byteBuffer;
     }
 }
